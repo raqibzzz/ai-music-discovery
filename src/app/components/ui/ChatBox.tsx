@@ -5,6 +5,7 @@ import { Send, Music, Sparkles } from 'lucide-react';
 import { useChat } from '../../../hooks/useChat';
 import { Button } from './button';
 import { Card, CardContent } from './card';
+import TextAnimation from './TextAnimation';
 
 interface SuggestedTrackProps {
   title: string;
@@ -99,7 +100,15 @@ const ChatBox: React.FC = () => {
                       : 'bg-[#1DB954] text-zinc-900 rounded-tr-none'
                   }`}
                 >
-                  <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                  {message.role === 'assistant' ? (
+                    <TextAnimation 
+                      content={message.content} 
+                      className="text-sm" 
+                      speed={15} 
+                    />
+                  ) : (
+                    <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                  )}
                   
                   {/* Display song suggestions if any */}
                   {message.role === 'assistant' && message.suggestions && message.suggestions.length > 0 && (

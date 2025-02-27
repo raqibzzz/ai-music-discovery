@@ -1,13 +1,14 @@
 # AI Music Discovery
 
-An AI-powered music discovery application that uses AI to help users discover new music based on their preferences. This application integrates with Spotify to provide personalized music recommendations through natural language conversations.
+An AI-powered music discovery application that uses GPT-4o to help users discover new music based on their preferences. This application integrates with Spotify to provide personalized music recommendations through natural language conversations.
 
 ![Music Discovery App](https://placeholder-for-screenshot.png)
 
 ## Features
 
-- AI-powered music assistant for natural language conversations about music
-- Personalized music recommendations based on your queries and preferences
+- AI-powered music assistant using OpenAI's GPT-4o for sophisticated natural language conversations about music
+- In-depth music analysis and personalized recommendations based on your taste profile
+- Detailed explanations of why certain tracks are recommended to help you discover new music
 - Spotify integration for searching and playing tracks
 - Recently played tracks history
 - Player controls with playback functionality
@@ -104,7 +105,7 @@ Before you begin, ensure you have the following installed:
 - [Tailwind CSS](https://tailwindcss.com/) - Styling
 - [Shadcn UI](https://ui.shadcn.com/) - UI component library
 - [React Resizable Panels](https://github.com/bvaughn/react-resizable-panels) - Resizable layout panels
-- [OpenAI API](https://openai.com/api/) - AI-powered conversation
+- [OpenAI GPT-4o](https://openai.com/api/) - Advanced AI for music recommendations
 - [Lucide React](https://lucide.dev/) - Icons
 - [TypeScript](https://www.typescriptlang.org/) - Type checking
 
