@@ -28,9 +28,42 @@ export function useChat() {
 
   // Helper function to extract track names from AI response
   const extractTrackNames = (text: string) => {
-    // Look for patterns like "Artist - Song" or mentions of songs by artists
-    const songMatches = text.match(/["'](.+?)["']|(\w+)\s*-\s*(\w+)/g) || [];
-    return songMatches.map(match => match.replace(/["']/g, '').trim());
+    // Remove any markdown formatting that might interfere with extraction
+    const cleanedText = text.replace(/\*\*/g, '').replace(/\*/g, '');
+    
+    // Better pattern matching for songs and artists with focus on quoted content
+    const patterns = [
+      /['"]([^'"]{3,50})['"](?!\s*\()/g,    // Anything in quotes, not followed by a parenthesis
+      /(\w[\w\s&'.]{3,40}) by ([\w\s&'.]{3,30})/gi,  // "Song by Artist" format
+      /([\w\s&'.]{3,30})\s+-\s+([\w\s&'.]{3,40})/g,  // Artist - Song format
+      /\b([\w\s&'.]{3,50}) (song|track)\b/gi,      // Anything followed by "song" or "track"
+    ];
+    
+    const matches: string[] = [];
+    
+    // Apply each pattern and collect results
+    patterns.forEach(pattern => {
+      const found = [...cleanedText.matchAll(pattern)];
+      found.forEach(match => {
+        // Get the first capturing group or the full match
+        const extractedText = match[1] || match[0];
+        if (extractedText && extractedText.length > 3 && extractedText.length < 100) { 
+          matches.push(extractedText.trim());
+        }
+      });
+    });
+    
+    // Handle special case for a list of songs
+    // This is a simplified version to handle the format seen in the console
+    if (matches.length === 0) {
+      const songListMatch = cleanedText.match(/Here are .+?:\s*(?:\d+\.\s*)?(.+?)(?:,|\.|\n|$)/i);
+      if (songListMatch && songListMatch[1]) {
+        matches.push(songListMatch[1].trim());
+      }
+    }
+    
+    // Deduplicate and return
+    return [...new Set(matches)];
   };
 
   const processMessage = async (userMessage: string) => {
@@ -67,18 +100,44 @@ export function useChat() {
       // Search for tracks and get recommendations
       let suggestions: SpotifyTrack[] = [];
       if (trackNames.length > 0) {
-        const searchResults = await Promise.all(
-          trackNames.map(track => searchTracks(track))
-        );
-        
-        // Get recommendations based on the found tracks
-        const trackIds = searchResults
-          .flat()
-          .slice(0, 2)
-          .map(track => track.id);
+        try {
+          console.log("Extracted track names:", trackNames);
           
-        if (trackIds.length > 0) {
-          suggestions = await getRecommendations(trackIds);
+          // Gather all search results
+          let allSearchResults: SpotifyTrack[] = [];
+          for (const track of trackNames) {
+            try {
+              const results = await searchTracks(track);
+              if (results && results.length > 0) {
+                allSearchResults = [...allSearchResults, ...results];
+              }
+            } catch (error) {
+              console.warn(`Search failed for track "${track}":`, error);
+              // Continue with other tracks
+            }
+          }
+          
+          // Filter out duplicates by ID
+          const uniqueResults = allSearchResults.filter((track, index, self) => 
+            index === self.findIndex(t => t.id === track.id)
+          );
+          
+          // Get recommendations based on the found tracks
+          const trackIds = uniqueResults
+            .slice(0, 5) // Spotify allows max 5 seed tracks
+            .map(track => track.id);
+            
+          console.log("Found track IDs for recommendations:", trackIds);
+            
+          if (trackIds.length > 0) {
+            suggestions = await getRecommendations(trackIds);
+            console.log(`Got ${suggestions.length} recommendations`);
+          } else {
+            console.log("No valid track IDs found for recommendations");
+          }
+        } catch (error) {
+          console.error("Error getting track recommendations:", error);
+          // Continue with AI response without suggestions
         }
       }
 

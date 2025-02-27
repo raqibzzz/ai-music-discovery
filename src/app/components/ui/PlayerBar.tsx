@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
 import { useCurrentPlayback } from '../../../hooks/useCurrentPlayback';
+import { Button } from './button';
+import { Card } from './card';
 
 const PlayerBar: React.FC = () => {
   const { 
@@ -48,37 +50,27 @@ const PlayerBar: React.FC = () => {
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [error, refreshPlayback, retryCount]);
+  }, [error, retryCount, refreshPlayback]);
 
-  // Reset retry count when connection is successful
+  // Update progress bar
   useEffect(() => {
-    if (currentTrack && hasRateLimitError) {
-      setHasRateLimitError(false);
-      setRetryCount(0);
-    }
-  }, [currentTrack, hasRateLimitError]);
-
-  // Handle reauth if needed
-  useEffect(() => {
-    if (needsReauth) {
-      setDisplayError('Session expired. Please refresh the page or sign in again.');
-    }
-  }, [needsReauth]);
-
-  // Update progress state when currentTrack changes
-  useEffect(() => {
-    if (!currentTrack || isDragging) return;
+    if (!currentTrack || !currentTrack.progress || !currentTrack.duration || isDragging) return;
     
     setLocalProgress(currentTrack.progress);
     setProgressPercent((currentTrack.progress / currentTrack.duration) * 100);
     
-    // Update progress periodically if track is playing
+    // If track is playing, update progress in real time
     if (currentTrack.isPlaying) {
       const interval = setInterval(() => {
         setLocalProgress(prev => {
-          const newProgress = Math.min(prev + 1000, currentTrack.duration);
-          setProgressPercent((newProgress / currentTrack.duration) * 100);
-          return newProgress;
+          const newProgress = prev + 1000;
+          if (newProgress <= currentTrack.duration) {
+            setProgressPercent((newProgress / currentTrack.duration) * 100);
+            return newProgress;
+          } else {
+            clearInterval(interval);
+            return prev;
+          }
         });
       }, 1000);
       
@@ -86,199 +78,248 @@ const PlayerBar: React.FC = () => {
     }
   }, [currentTrack, isDragging]);
 
-  // Format time (ms) to MM:SS
+  // Format time in mm:ss
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
 
+  // Handle seeking on progress bar
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
+    const value = Number(e.target.value);
     setProgressPercent(value);
-    const newProgressMs = Math.floor((value / 100) * (currentTrack?.duration || 0));
-    setLocalProgress(newProgressMs);
+    setIsDragging(true);
+    if (currentTrack) {
+      setLocalProgress((value / 100) * currentTrack.duration);
+    }
   };
 
+  // Send seek command to Spotify
   const handleSeekComplete = () => {
+    setIsDragging(false);
     if (currentTrack) {
-      seekToPosition(localProgress);
-      setIsDragging(false);
+      const position = Math.floor((progressPercent / 100) * currentTrack.duration);
+      seekToPosition(position);
     }
   };
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    // Implement actual Spotify mute functionality if needed
+    // Would implement actual mute functionality here if the Spotify Web API supported it
   };
 
   const handleRetry = () => {
     setDisplayError(null);
+    setHasRateLimitError(false);
     refreshPlayback();
   };
 
   const handleOpenSpotify = () => {
-    window.open('https://open.spotify.com', '_blank');
+    if (currentTrack) {
+      window.open(`https://open.spotify.com/track/${currentTrack.id}`, '_blank');
+    }
   };
 
-  // Show error state
-  if (displayError) {
-    return (
-      <div className="h-24 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between px-6">
-        <div className="text-red-400 flex-1 flex items-center">
-          <AlertCircle size={20} className="mr-3 flex-shrink-0"/>
-          <div>
-            <p className="font-medium">{displayError}</p>
-            <p className="text-sm text-zinc-400 mt-1">
-              {hasRateLimitError 
-                ? `Retrying automatically in ${Math.min(30, Math.pow(2, retryCount))} seconds...` 
-                : 'Make sure you have Spotify Premium and an active device.'}
-            </p>
-          </div>
+  // Base player that shows even when no track is playing
+  const renderEmptyPlayer = () => (
+    <div className="h-full flex items-center justify-between px-4">
+      <div className="flex items-center space-x-4">
+        <div className="w-10 h-10 bg-zinc-800 rounded-md flex items-center justify-center">
+          <AlertCircle size={18} className="text-zinc-400" />
         </div>
-        <div className="flex space-x-3">
-          <button 
-            onClick={handleRetry}
-            className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-            disabled={hasRateLimitError}
-          >
-            <RefreshCw size={16} className={hasRateLimitError ? "animate-spin" : ""} />
-            <span>Retry</span>
-          </button>
-          <button 
-            onClick={handleOpenSpotify}
-            className="bg-[#1DB954] hover:bg-[#1DB954]/80 text-black px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <ExternalLink size={16} />
-            <span>Open Spotify</span>
-          </button>
+        <div>
+          <div className="text-zinc-300 font-medium">Not playing</div>
+          <div className="text-xs text-zinc-500">No active Spotify session detected</div>
         </div>
       </div>
-    );
-  }
-
-  // Show loading state
-  if (isLoading && !currentTrack) {
-    return (
-      <div className="h-24 bg-zinc-950 border-t border-zinc-800 flex items-center justify-center px-6">
-        <div className="flex items-center space-x-3">
-          <div className="w-5 h-5 rounded-full bg-[#1DB954] animate-pulse"></div>
-          <p className="text-zinc-400">Connecting to Spotify...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // No track playing
-  if (!currentTrack && !isLoading) {
-    return (
-      <div className="h-24 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between px-6">
-        <p className="text-zinc-400">No track currently playing on Spotify</p>
-        <button 
-          onClick={handleOpenSpotify}
-          className="bg-[#1DB954] hover:bg-[#1DB954]/80 text-black px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+      
+      <div className="flex items-center">
+        <Button
+          onClick={refreshPlayback}
+          variant="secondary"
+          size="sm"
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
         >
-          <ExternalLink size={16} />
-          <span>Open Spotify</span>
-        </button>
+          <RefreshCw size={16} />
+        </Button>
       </div>
-    );
-  }
+    </div>
+  );
 
-  return (
-    <div className="h-24 bg-zinc-950 border-t border-zinc-800 flex items-center px-6">
-      {currentTrack && (
-        <>
-          {/* Track Info */}
-          <div className="flex items-center w-1/4">
-            <div className="relative w-16 h-16 rounded overflow-hidden mr-4 shadow-lg">
-              {currentTrack.albumArt && (
-                <Image 
-                  src={currentTrack.albumArt} 
-                  alt={`${currentTrack.album} cover`} 
-                  fill
-                  className="object-cover"
-                />
-              )}
+  // Player with error state
+  const renderErrorState = () => (
+    <div className="h-full flex items-center justify-between px-4">
+      <div className="flex items-center space-x-4">
+        <div className="w-10 h-10 bg-red-900/30 rounded-md flex items-center justify-center">
+          <AlertCircle size={18} className="text-red-400" />
+        </div>
+        <div className="flex-1">
+          <div className="text-zinc-300 font-medium">Playback error</div>
+          <div className="text-xs text-red-400 max-w-xs truncate">{displayError || 'Connection error with Spotify'}</div>
+        </div>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        {needsReauth && (
+          <Button
+            onClick={() => window.location.href = '/api/auth/signin?callbackUrl=/dashboard'}
+            variant="secondary"
+            size="sm"
+            className="bg-[#1DB954] hover:bg-[#1DB954]/90 text-black"
+          >
+            Reconnect
+          </Button>
+        )}
+        
+        <Button
+          onClick={handleRetry}
+          variant="secondary"
+          size="sm"
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+          disabled={hasRateLimitError}
+        >
+          <RefreshCw size={16} className={hasRateLimitError ? 'animate-spin' : ''} />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Full featured player when a track is playing
+  const renderPlayer = () => {
+    if (!currentTrack) return renderEmptyPlayer();
+    
+    return (
+      <div className="h-full flex items-center justify-between px-4">
+        {/* Track info */}
+        <div className="flex items-center space-x-4 flex-1 min-w-0">
+          {currentTrack.albumArt ? (
+            <div className="w-10 h-10 relative rounded-md overflow-hidden shadow-lg flex-shrink-0">
+              <Image 
+                src={currentTrack.albumArt} 
+                alt={`${currentTrack.album || 'Album cover'}`} 
+                fill
+                className="object-cover"
+              />
             </div>
-            <div className="flex flex-col">
-              <span className="text-white font-medium truncate max-w-[240px]">{currentTrack.title}</span>
-              <span className="text-zinc-400 text-sm truncate max-w-[240px]">{currentTrack.artist}</span>
+          ) : (
+            <div className="w-10 h-10 bg-zinc-800 rounded-md flex-shrink-0"></div>
+          )}
+          
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-medium truncate">{currentTrack.title}</div>
+            <div className="text-xs text-zinc-400 truncate">
+              {currentTrack.artist}
             </div>
           </div>
-
-          {/* Playback Controls */}
-          <div className="flex-1 flex flex-col items-center">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={skipPrevious}
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                <SkipBack size={22} />
-              </button>
-              <button 
-                onClick={playPause}
-                className="bg-white text-black hover:scale-105 transition-transform p-2 rounded-full"
-              >
-                {currentTrack.isPlaying ? <Pause size={22} /> : <Play size={22} />}
-              </button>
-              <button 
-                onClick={skipNext}
-                className="text-zinc-400 hover:text-white transition-colors"
-              >
-                <SkipForward size={22} />
-              </button>
-            </div>
+        </div>
+        
+        {/* Playback controls */}
+        <div className="flex flex-col justify-center items-center flex-1">
+          <div className="flex items-center space-x-2 mb-1.5">
+            <Button
+              onClick={skipPrevious}
+              variant="secondary"
+              size="sm"
+              className="bg-transparent hover:bg-zinc-800 text-zinc-400 hover:text-white p-1.5 h-auto w-auto"
+            >
+              <SkipBack size={16} />
+            </Button>
             
-            {/* Progress Bar */}
-            <div className="w-full flex items-center justify-center gap-2 mt-2">
-              <span className="text-xs text-zinc-400 w-10 text-right">
-                {formatTime(localProgress)}
-              </span>
-              <div className="relative flex-1 max-w-md">
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={progressPercent}
-                  onChange={handleSeek}
-                  onMouseDown={() => setIsDragging(true)}
-                  onMouseUp={handleSeekComplete}
-                  onTouchStart={() => setIsDragging(true)}
-                  onTouchEnd={handleSeekComplete}
-                  className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
-                />
+            <Button
+              onClick={playPause}
+              variant="secondary"
+              size="sm"
+              className="bg-white hover:bg-zinc-200 text-black p-1 h-8 w-8 rounded-full"
+            >
+              {currentTrack.isPlaying ? (
+                <Pause size={16} className="ml-0.5" />
+              ) : (
+                <Play size={16} className="ml-0.5" />
+              )}
+            </Button>
+            
+            <Button
+              onClick={skipNext}
+              variant="secondary"
+              size="sm"
+              className="bg-transparent hover:bg-zinc-800 text-zinc-400 hover:text-white p-1.5 h-auto w-auto"
+            >
+              <SkipForward size={16} />
+            </Button>
+          </div>
+          
+          {/* Progress bar */}
+          <div className="flex items-center w-full max-w-xs space-x-2">
+            <span className="text-xs text-zinc-400 w-8 text-right">
+              {formatTime(localProgress)}
+            </span>
+            
+            <div className="relative flex-1 h-1 group">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progressPercent}
+                onChange={handleSeek}
+                onMouseUp={handleSeekComplete}
+                onTouchEnd={handleSeekComplete}
+                className="absolute inset-0 w-full h-1 appearance-none bg-transparent z-10 cursor-pointer opacity-0"
+                style={{ touchAction: 'none' }}
+              />
+              <div className="h-1 bg-zinc-800 rounded-full w-full absolute">
                 <div 
-                  className="absolute top-0 left-0 h-1.5 bg-[#1DB954] rounded-lg pointer-events-none" 
+                  className="h-full bg-[#1DB954] rounded-full absolute left-0 group-hover:bg-[#1ed760] transition-colors"
                   style={{ width: `${progressPercent}%` }}
                 ></div>
               </div>
-              <span className="text-xs text-zinc-400 w-10">
-                {formatTime(currentTrack.duration)}
-              </span>
             </div>
+            
+            <span className="text-xs text-zinc-400 w-8">
+              {currentTrack.duration ? formatTime(currentTrack.duration) : '--:--'}
+            </span>
           </div>
+        </div>
+        
+        {/* Volume and external link */}
+        <div className="flex items-center space-x-3 flex-1 justify-end">
+          <Button
+            onClick={toggleMute}
+            variant="secondary"
+            size="sm"
+            className="bg-transparent hover:bg-zinc-800 text-zinc-400 hover:text-white p-1.5 h-auto w-auto"
+          >
+            {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          </Button>
+          
+          <Button
+            onClick={handleOpenSpotify}
+            variant="secondary"
+            size="sm"
+            className="bg-transparent hover:bg-zinc-800 text-zinc-400 hover:text-white p-1.5 h-auto w-auto"
+          >
+            <ExternalLink size={16} />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
-          {/* Volume Control */}
-          <div className="w-1/4 flex justify-end items-center">
-            <button 
-              onClick={toggleMute}
-              className="text-zinc-400 hover:text-white transition-colors mr-2"
-            >
-              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              defaultValue="80"
-              className="w-24 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#1DB954]"
-            />
-          </div>
-        </>
+  return (
+    <Card className="h-20 border-t border-zinc-800 bg-zinc-900 shadow-md rounded-none">
+      {isLoading ? (
+        <div className="h-full flex items-center justify-center">
+          <div className="h-5 w-5 border-2 border-zinc-800 border-t-[#1DB954] rounded-full animate-spin"></div>
+        </div>
+      ) : error ? (
+        renderErrorState()
+      ) : currentTrack ? (
+        renderPlayer()
+      ) : (
+        renderEmptyPlayer()
       )}
-    </div>
+    </Card>
   );
 };
 
