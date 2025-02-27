@@ -1,5 +1,5 @@
 // src/hooks/useRecentlyPlayed.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 
 interface RecentTrack {
@@ -11,13 +11,26 @@ interface RecentTrack {
   playedAt: Date;
 }
 
+interface SpotifyTrackItem {
+  track: {
+    id: string;
+    name: string;
+    artists: Array<{ name: string }>;
+    album: {
+      name: string;
+      images: Array<{ url: string }>;
+    };
+  };
+  played_at: string;
+}
+
 export function useRecentlyPlayed() {
   const { data: session } = useSession();
   const [recentTracks, setRecentTracks] = useState<RecentTrack[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchRecentlyPlayed = async () => {
+  const fetchRecentlyPlayed = useCallback(async () => {
     if (!session?.accessToken) return;
 
     try {
@@ -40,7 +53,7 @@ export function useRecentlyPlayed() {
 
       const data = await response.json();
       
-      const formattedTracks = data.items.map((item: any) => ({
+      const formattedTracks = data.items.map((item: SpotifyTrackItem) => ({
         id: item.track.id,
         title: item.track.name,
         artist: item.track.artists[0].name,
@@ -56,7 +69,7 @@ export function useRecentlyPlayed() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session]);
 
   // Function to format the relative time (e.g., "2 min ago")
   const getRelativeTime = (date: Date) => {
@@ -78,7 +91,7 @@ export function useRecentlyPlayed() {
     if (session?.accessToken) {
       fetchRecentlyPlayed();
     }
-  }, [session]);
+  }, [session, fetchRecentlyPlayed]);
 
   // Optional: Set up periodic refresh (every 30 seconds)
   useEffect(() => {
@@ -89,7 +102,7 @@ export function useRecentlyPlayed() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(intervalId);
-  }, [session]);
+  }, [session, fetchRecentlyPlayed]);
 
   return {
     recentTracks,

@@ -1,5 +1,5 @@
 import 'next-auth';
-import { JWT } from 'next-auth/jwt';
+// JWT is used in the module declaration, so we don't need to import it explicitly
 
 declare module 'next-auth' {
   interface Session {

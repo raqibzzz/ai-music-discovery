@@ -1,5 +1,5 @@
 // src/hooks/useSpotify.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import * as spotifyApi from '../lib/spotify';
 
@@ -18,7 +18,7 @@ export function useSpotify() {
   const [error, setError] = useState<string | null>(null);
   
 
-  const fetchUserTopTracks = async () => {
+  const fetchUserTopTracks = useCallback(async () => {
     try {
       setIsLoading(true);
       const tracks = await spotifyApi.getUserTopTracks(session);
@@ -29,7 +29,7 @@ export function useSpotify() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session]);
 
   const getRecommendations = async (trackIds: string[]) => {
     try {
@@ -57,7 +57,7 @@ export function useSpotify() {
     if (session) {
       fetchUserTopTracks();
     }
-  }, [session]);
+  }, [session, fetchUserTopTracks]);
 
   return {
     topTracks,

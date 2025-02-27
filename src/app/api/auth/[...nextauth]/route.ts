@@ -50,7 +50,7 @@ const handler = NextAuth({
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: 'user-read-email playlist-modify-public user-library-read user-top-read user-read-recently-played',
+          scope: 'user-read-email playlist-modify-public user-library-read user-top-read user-read-recently-played user-read-playback-state user-modify-playback-state user-read-currently-playing',
         },
       },
     }),

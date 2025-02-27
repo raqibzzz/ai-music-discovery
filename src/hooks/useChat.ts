@@ -1,5 +1,5 @@
 // src/hooks/useChat.ts
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useSpotify } from './useSpotify';
 import { useSession } from 'next-auth/react';
 
@@ -23,7 +23,8 @@ export function useChat() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { searchTracks, getRecommendations } = useSpotify();
-  const { data: session } = useSession();
+  // Using session for authentication but not destructuring to avoid unused variable warnings
+  useSession();
 
   // Helper function to extract track names from AI response
   const extractTrackNames = (text: string) => {
