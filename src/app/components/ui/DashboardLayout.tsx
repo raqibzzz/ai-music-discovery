@@ -36,7 +36,7 @@ const HistoryTrack: React.FC<HistoryTrackProps> = ({ title, artist, timestamp })
 
 // Custom resize handle component
 const ResizeHandle = () => (
-  <PanelResizeHandle className="w-1.5 mx-1 hover:w-2 hover:mx-0.75 transition-all duration-150 rounded-full flex justify-center items-center bg-zinc-800 hover:bg-[#1DB954] group">
+  <PanelResizeHandle className="w-1 mx-0.5 hover:w-1.5 hover:mx-0.25 transition-all duration-150 rounded-full flex justify-center items-center bg-zinc-800 hover:bg-[#1DB954] group">
     <GripVertical size={12} className="text-zinc-600 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" />
   </PanelResizeHandle>
 );
@@ -56,7 +56,7 @@ const DashboardLayout: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-black">
       {/* Header */}
-      <header className="h-16 bg-zinc-950 border-b border-zinc-800 flex items-center px-6 z-10 shadow-lg">
+      <header className="h-14 bg-zinc-950 border-b border-zinc-800 flex items-center px-4 z-10 shadow-lg">
         <div className="flex items-center gap-2">
           <Disc3 size={28} className="text-[#1DB954]" />
           <h1 className="text-xl font-bold text-white">Music Discovery</h1>
@@ -87,7 +87,7 @@ const DashboardLayout: React.FC = () => {
 
       <div className="flex-1 overflow-hidden flex">
         {/* Main Content with Resizable Panels */}
-        <main className="flex-1 flex flex-col bg-zinc-950 p-6 overflow-y-auto">
+        <main className="flex-1 flex flex-col bg-zinc-950 p-2 overflow-y-auto">
           <PanelGroup direction="horizontal" className="h-full">
             {/* ChatBox Panel */}
             <Panel defaultSize={75} minSize={20} className="h-full overflow-hidden">
@@ -106,14 +106,14 @@ const DashboardLayout: React.FC = () => {
               <PanelGroup direction="vertical" className="h-full">
                 <Panel defaultSize={50} minSize={15} className="overflow-hidden">
                   <Card className="h-full bg-zinc-900 border-zinc-800 shadow-md">
-                    <CardHeader className="pb-2 pt-4 px-4">
+                    <CardHeader className="pb-1 pt-2 px-3">
                       <CardTitle className="text-sm font-semibold text-white flex items-center">
                         <Clock size={16} className="mr-2 text-[#1DB954]" />
                         Recently Played
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0 pb-4 px-4">
-                      <div className="space-y-2">
+                    <CardContent className="pt-0 pb-2 px-2">
+                      <div className="space-y-1">
                         {tracksLoading ? (
                           <div className="text-zinc-400 text-xs p-2 bg-zinc-800 rounded-lg animate-pulse">Loading...</div>
                         ) : tracksError ? (
@@ -136,20 +136,20 @@ const DashboardLayout: React.FC = () => {
                 </Panel>
                 
                 {/* Horizontal Resize Handle */}
-                <PanelResizeHandle className="h-1.5 my-1 hover:h-2 hover:my-0.75 transition-all duration-150 rounded-full flex flex-col justify-center items-center bg-zinc-800 hover:bg-[#1DB954] group">
+                <PanelResizeHandle className="h-1 my-0.5 hover:h-1.5 hover:my-0.25 transition-all duration-150 rounded-full flex flex-col justify-center items-center bg-zinc-800 hover:bg-[#1DB954] group">
                   <GripVertical size={12} className="rotate-90 text-zinc-600 group-hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </PanelResizeHandle>
                 
                 <Panel defaultSize={50} minSize={15} className="overflow-hidden">
                   <Card className="h-full bg-zinc-900 border-zinc-800 shadow-md">
-                    <CardHeader className="pb-2 pt-4 px-4">
+                    <CardHeader className="pb-1 pt-2 px-3">
                       <CardTitle className="text-sm font-semibold text-white flex items-center">
                         <ThumbsUp size={16} className="mr-2 text-[#1DB954]" />
                         Previous Suggestions
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0 pb-4 px-4">
-                      <div className="space-y-2">
+                    <CardContent className="pt-0 pb-2 px-2">
+                      <div className="space-y-1">
                         <HistoryTrack 
                           title="Bring the Sun"
                           artist="Low Roar"
